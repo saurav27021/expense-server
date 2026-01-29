@@ -1,8 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const authRoutes = require('./src/routes/authRoutes');
+require('dotenv').config();
 
-mongoose.connect("mongodb://localhost:27017/expense-tracker")
+mongoose.connect(process.env.MONGO_DB_CONNECTION_URI)
   .then(() => console.log('MongoDB Connected'))
   .catch((error) => console.log('Error Connecting to Database: ', error));
 
