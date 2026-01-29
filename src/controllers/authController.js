@@ -1,62 +1,116 @@
 const userDao = require('../dao/userDao');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const authController = {
-  login: async (request, response) => {
-    const { email, password } = request.body;
 
-    if (!email || !password) {
-      return response.status(400).json({
-        message: 'Email and Password are required'
-      });
-    }
+    // ================= LOGIN =================
+    login: async (req, res) => {
+        try {
+            const { email, password } = req.body;
 
-    const user = await userDao.findByEmail(email);
+            if (!email || !password) {
+                return res.status(400).json({
+                    message: 'Email and Password are required'
+                });
+            }
 
-    if (user && user.password === password) {
-      return response.status(200).json({
-        message: 'User authenticated',
-        user: user
-      });
-    } else {
-      return response.status(400).json({
-        message: 'Invalid email or password'
-      });
-    }
-  },
+            const user = await userDao.findByEmail(email);
 
-  register: async (request, response) => {
-    const { name, email, password } = request.body;
+            // user exist check (MOST IMPORTANT)
+            if (!user) {
+                return res.status(400).json({
+                    message: 'Invalid email or password'
+                });
+            }
 
-    if (!name || !email || !password) {
-      return response.status(400).json({
-        message: 'Name, Email, Password are required'
-      });
-    }
+            const isPasswordMatched = await bcrypt.compare(
+                password,
+                user.password
+            );
+            if(user && isPasswordMatched){
+                const token = jwt.sign({
+                    name: user.name,
+                    email: user.email,
+                    id: user._id
+                }, process.env.JWT_SECRET, {
+                    expiresIn: '1h'
+                });
+                res.cookie('jwtToken',token,{
+                    httpOnly: true, 
+                    secure: true,   //data is encrypted work only if connection is https
+                    domain: 'localhost',
+                    path: '/'      //on which path cookie is valid
+                });
+                return res.status(200).json({
+                    message: 'User Authenticated',
+                    user: user
+                });
+            }
 
-    userDao.create({
-      name: name,
-      email: email,
-      password: password
-    })
-      .then(u => {
-        return response.status(200).json({
-          message: 'User registered',
-          user: { id: u._id }
-        });
-      })
-      .catch(error => {
-        if (error.code === 'USER_EXIST') {
-          console.log(error);
-          return response.status(400).json({
-            message: 'User with the email already exist'
-          });
-        } else {
-          return response.status(500).json({
-            message: "Internal server error"
-          });
+            if (!isPasswordMatched) {
+                return res.status(400).json({
+                    message: 'Invalid email or password'
+                });
+            }
+
+            return res.status(200).json({
+                message: 'User Authenticated',
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email
+                }
+            });
+
+        } catch (error) {
+            console.error('Login Error:', error);
+            return res.status(500).json({
+                message: 'Internal Server Error'
+            });
         }
-      });
-  },
+    },
+
+    // ================= REGISTER =================
+    register: async (req, res) => {
+        try {
+            const { name, email, password } = req.body;
+
+            if (!name || !email || !password) {
+                return res.status(400).json({
+                    message: 'Name, Email and Password are required'
+                });
+            }
+
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(password, salt);
+
+            const user = await userDao.create({
+                name: name,
+                email: email,
+                password: hashedPassword
+            });
+
+            return res.status(201).json({
+                message: 'User registered successfully',
+                user: {
+                    id: user._id
+                }
+            });
+
+        } catch (error) {
+            if (error.code === 'USER_EXIST') {
+                return res.status(400).json({
+                    message: 'User with this email already exists'
+                });
+            }
+
+            console.error('Register Error:', error);
+            return res.status(500).json({
+                message: 'Internal Server Error'
+            });
+        }
+    }
 };
 
 module.exports = authController;
