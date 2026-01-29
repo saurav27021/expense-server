@@ -1,7 +1,7 @@
-const users = require('../dao/userDb');
+const userDao = require('../dao/userDao');
 
 const authController = {
-  login: (request, response) => {
+  login: async (request, response) => {
     const { email, password } = request.body;
 
     if (!email || !password) {
@@ -10,9 +10,9 @@ const authController = {
       });
     }
 
-    const user = users.find(u => u.email === email && u.password === password);
+    const user = await userDao.findByEmail(email);
 
-    if (user) {
+    if (user && user.password === password) {
       return response.status(200).json({
         message: 'User authenticated',
         user: user
@@ -24,7 +24,7 @@ const authController = {
     }
   },
 
-  register: (request, response) => {
+  register: async (request, response) => {
     const { name, email, password } = request.body;
 
     if (!name || !email || !password) {
@@ -33,27 +33,29 @@ const authController = {
       });
     }
 
-
-    const user = users.find(u => u.email === email);
-    if (user) {
-      return response.status(400).json({
-        message: `User already exist with email: ${email}`
-      });
-    }
-
-    const newUser = {
-      id: users.length + 1,
+    userDao.create({
       name: name,
       email: email,
       password: password
-    };
-
-    users.push(newUser);
-
-    return response.status(200).json({
-      message: 'User registered',
-      user: { id: newUser.id }
-    });
+    })
+      .then(u => {
+        return response.status(200).json({
+          message: 'User registered',
+          user: { id: u._id }
+        });
+      })
+      .catch(error => {
+        if (error.code === 'USER_EXIST') {
+          console.log(error);
+          return response.status(400).json({
+            message: 'User with the email already exist'
+          });
+        } else {
+          return response.status(500).json({
+            message: "Internal server error"
+          });
+        }
+      });
   },
 };
 

@@ -1,5 +1,10 @@
 const express = require('express');
-const authRoutes = require('./src/routes/authRoutes.js');
+const mongoose = require('mongoose');
+const authRoutes = require('./src/routes/authRoutes');
+
+mongoose.connect("mongodb://localhost:27017/expense-tracker")
+  .then(() => console.log('MongoDB Connected'))
+  .catch((error) => console.log('Error Connecting to Database: ', error));
 
 const app = express();
 
