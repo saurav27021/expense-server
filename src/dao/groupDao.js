@@ -41,7 +41,7 @@ const groupDao = {
 
     },
     getGroupByStatus: async (status) => {
-<<<<<<< HEAD
+
         return await Group.find({ status });
 
     },
