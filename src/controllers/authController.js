@@ -49,8 +49,12 @@ const authController = {
 
         //  SEND RESPONSE
         return res.status(200).json({
-            message: "Login successful"
-
+            message: "Login successful",
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email
+            }
         });
     },
 
@@ -112,54 +116,52 @@ const authController = {
     },
 
     // ================= GOOGLE LOGIN =================
-    googleLogin: async (req, res) => {
+    googleSso: async (req, res) => {
         try {
-            const { token } = req.body;
+            const { idToken } = req.body;
 
-            const ticket = await client.verifyIdToken({
-                idToken: token,
-                audience: process.env.GOOGLE_CLIENT_ID,
+            if (!idToken) {
+                return res.status(401).json({ message: "Invalid request" });
+            }
+
+            const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+            const googleResponse = await googleClient.verifyIdToken({
+                idToken: idToken,
+                audience: process.env.GOOGLE_CLIENT_ID
             });
 
-            const payload = ticket.getPayload();
-            const { email, name, picture, sub: googleId } = payload;
+            const payload = googleResponse.getPayload();
+            const { sub: googleId, name, email } = payload;
 
             let user = await userDao.findByEmail(email);
 
             if (!user) {
-                // Create user if not exists (using a random password as it won't be used for Google users)
-                const salt = await bcrypt.genSalt(10);
-                const hashedPassword = await bcrypt.hash(Math.random().toString(36).slice(-10), salt);
-
                 user = await userDao.create({
                     name,
                     email,
-                    password: hashedPassword
+                    googleId
                 });
             }
 
-            const jwtToken = jwt.sign({
-                name: user.name,
-                email: user.email,
-                id: user._id
-            }, process.env.JWT_SECRET, {
-                expiresIn: '1h'
-            });
+            const token = jwt.sign(
+                { userId: user._id, email: user.email },
+                process.env.JWT_SECRET,
+                { expiresIn: '1h' }
+            );
 
-            res.cookie('jwtToken', jwtToken, {
+            res.cookie('jwtToken', token, {
                 httpOnly: true,
-                secure: true,
-                domain: 'localhost',
-                path: '/'
+                secure: false, // use true in production (HTTPS)
+                sameSite: 'strict'
             });
 
             return res.status(200).json({
-                message: 'User Authenticated via Google',
+                message: "Login successful",
                 user: {
                     id: user._id,
                     name: user.name,
-                    email: user.email,
-                    picture
+                    email: user.email
                 }
             });
 
@@ -169,7 +171,8 @@ const authController = {
                 message: 'Invalid Google Token'
             });
         }
-    },
+    }
+    ,
 
     // ================= CHECK SESSION =================
     isUserLoggedIn: async (req, res) => {

@@ -20,6 +20,12 @@ app.use(cors({
 app.use(express.json());  //Middleware
 app.use(cookieParser());  //Middleware to parse cookies 
 
+// DEBUG: Request Logger
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+});
+
 app.use('/auth', authRoutes);
 app.use('/group', groupRoutes);
 
