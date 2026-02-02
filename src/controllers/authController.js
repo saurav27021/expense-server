@@ -2,6 +2,7 @@ const userDao = require('../dao/userDao');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
+const { validationResult } = require('express-validator');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -9,19 +10,27 @@ const authController = {
 
     // ================= LOGIN =================
     login: async (req, res) => {
-        const { email, password } = req.body;
-
-        if (!email || !password) {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
             return res.status(400).json({
-                error: "Email and Password are required"
+                errors: errors.array()
             });
         }
+        const { email, password } = req.body;
+
 
         const user = await userDao.findByEmail(email);
 
         if (!user) {
             return res.status(401).json({
-                error: "Invalid credentials"
+                message: "Invalid credentials"
+            });
+        }
+
+        // Check if user is Google SSO user and has no password
+        if (user.googleId && !user.password) {
+            return res.status(401).json({
+                message: "please login using google sso"
             });
         }
 
@@ -29,7 +38,7 @@ const authController = {
 
         if (!isPasswordMatch) {
             return res.status(401).json({
-                error: "Invalid credentials"
+                message: "Invalid credentials"
             });
         }
 
@@ -61,13 +70,15 @@ const authController = {
     // ================= REGISTER =================
     register: async (req, res) => {
         try {
-            const { name, email, password } = req.body;
-
-            if (!name || !email || !password) {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
                 return res.status(400).json({
-                    message: 'Name, Email and Password are required'
+                    errors: errors.array()
                 });
             }
+
+            const { name, email, password } = req.body;
+
 
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(password, salt);
