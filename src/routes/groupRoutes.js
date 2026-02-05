@@ -1,6 +1,5 @@
 const express = require('express');
-const groupController = require('../controllers/authController'); // Wait, looking at the previous view_file, it was groupController.
-const actualGroupController = require('../controllers/groupController');
+const groupController = require('../controllers/groupController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const {
     createGroupValidator,
@@ -13,18 +12,20 @@ const router = express.Router();
 
 router.use(authMiddleware.protect);
 
-router.post('/create', createGroupValidator, actualGroupController.createGroup);
+router.post('/create', createGroupValidator, groupController.createGroup);
 
-router.put('/update', updateGroupValidator, actualGroupController.updateGroup);
+router.put('/update', updateGroupValidator, groupController.updateGroup);
 
-router.post('/add-members', addMembersValidator, actualGroupController.addMembers);
+router.post('/add-members', addMembersValidator, groupController.addMembers);
 
-router.post('/remove-members', addMembersValidator, actualGroupController.removeMembers);
+router.post('/remove-members', addMembersValidator, groupController.removeMembers);
 
-router.get('/email/:email', actualGroupController.getGroupByEmail);
+router.get('/my-groups', groupController.getGroupsByUser);
 
-router.get('/status/:status', actualGroupController.getGroupByStatus);
+router.get('/email/:email', groupController.getGroupByEmail);
 
-router.get('/audit/:groupId', groupIdParamValidator, actualGroupController.getAuditLog);
+router.get('/status/:status', groupController.getGroupByStatus);
+
+router.get('/audit/:groupId', groupIdParamValidator, groupController.getAuditLog);
 
 module.exports = router;

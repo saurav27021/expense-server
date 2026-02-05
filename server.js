@@ -4,6 +4,8 @@ const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 const authRoutes = require('./src/routes/authRoutes');
 const groupRoutes = require('./src/routes/groupRoutes');
+const rbacRoutes = require('./src/routes/rbacRoutes');
+
 
 mongoose.connect(process.env.MONGO_DB_CONNECTION_URI)
     .then(() => console.log('MongoDB Connected'))
@@ -28,6 +30,7 @@ app.use((req, res, next) => {
 
 app.use('/auth', authRoutes);
 app.use('/group', groupRoutes);
+app.use('/users',rbacRoutes);
 
 
 

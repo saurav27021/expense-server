@@ -1,7 +1,6 @@
 const groupDao = require('../dao/groupDao');
 const { validationResult } = require('express-validator');
 
-
 const groupController = {
     createGroup: async (req, res) => {
         try {
@@ -23,10 +22,12 @@ const groupController = {
             }
 
             const newGroup = await groupDao.createGroup({
-
-                name, description, adminEmail: user.email, allMembers, thumbnail,
-
-                PaymentAddress: {
+                name,
+                description,
+                adminEmail: user.email,
+                membersEmail: allMembers,
+                thumbnail,
+                paymentStatus: {
                     amount: 0,
                     currency: 'INR',
                     date: Date.now(),
@@ -52,7 +53,8 @@ const groupController = {
             if (!errors.isEmpty()) {
                 return res.status(400).json({ errors: errors.array() });
             }
-            const updatedGroup = await groupDao.updateGroup(req.body);
+            const { groupId, ...updateData } = req.body;
+            const updatedGroup = await groupDao.updateGroup(groupId, updateData);
 
             res.status(200).json(updatedGroup);
         } catch (error) {
@@ -104,7 +106,7 @@ const groupController = {
     getGroupByStatus: async (req, res) => {
         try {
             const { status } = req.params;
-            const groups = await groupDao.getGroupByStatus(status);
+            const groups = await groupDao.getGroupByStatus(status === 'true');
             res.status(200).json(groups);
         } catch (error) {
             console.log(error);
@@ -125,13 +127,18 @@ const groupController = {
             console.log(error);
             res.status(500).json({ message: 'Internal Server Error' });
         }
-    }
+    },
 
-
-
-
-
-
+    getGroupsByUser: async (req, res) => {
+        try {
+            const email = req.user.email;
+            const groups = await groupDao.getGroupByEmail(email);
+            res.status(200).json(groups);
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ message: 'Internal Server Error' });
+        }
+    },
 };
 
 module.exports = groupController;

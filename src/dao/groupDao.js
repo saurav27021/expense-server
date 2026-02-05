@@ -5,19 +5,19 @@ const groupDao = {
         return await newGroup.save();
     },
 
-    updateGroup: async (groupId,data) => {
+    updateGroup: async (groupId, data) => {
 
-        const {name, description, thumbnail, adminEmail, paymentStatus} = data;
+        const { name, description, thumbnail, adminEmail, paymentStatus } = data;
         return await Group.findByIdAndUpdate(groupId, {
-            name,description,thumbnail,adminEmail,paymentStatus,
+            name, description, thumbnail, adminEmail, paymentStatus,
 
-        },{new: true});
+        }, { new: true });
     },
-    
-    addMembers: async (groupId,...membersEmails) => {
-        return await Group.findByIdAndUpdate(groupId,{
-            $addToSet: {membersEmail: {$each: membersEmails}}
-        },{new: true});
+
+    addMembers: async (groupId, ...membersEmails) => {
+        return await Group.findByIdAndUpdate(groupId, {
+            $addToSet: { membersEmail: { $each: membersEmails } }
+        }, { new: true });
     },
 
 
@@ -33,17 +33,15 @@ const groupDao = {
         );
 
 
-        
 
-    },  
+
+    },
     getGroupByEmail: async (email) => {
-        return await Group.find({membersEmail: email});
+        return await Group.find({ membersEmail: email });
 
     },
     getGroupByStatus: async (status) => {
-
-        return await Group.find({ status });
-
+        return await Group.find({ 'paymentStatus.isPaid': status });
     },
 
     getAuditLog: async (groupId) => {
@@ -56,12 +54,12 @@ const groupDao = {
 };
 
 
-    /**
-     *We'll only return when was the last time group
-     * was settled to begin with,
-     * In future, we can move this to separate entity!
-     * @param {*} group
-     */
+/**
+ *We'll only return when was the last time group
+ * was settled to begin with,
+ * In future, we can move this to separate entity!
+ * @param {*} group
+ */
 
 
 
