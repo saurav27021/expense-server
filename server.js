@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const authRoutes = require('./src/routes/authRoutes');
 const groupRoutes = require('./src/routes/groupRoutes');
 const rbacRoutes = require('./src/routes/rbacRoutes');
+const expenseRoutes = require('./src/routes/expenseRoutes');
 
 
 mongoose.connect(process.env.MONGO_DB_CONNECTION_URI)
@@ -22,15 +23,19 @@ app.use(cors({
 app.use(express.json());  //Middleware
 app.use(cookieParser());  //Middleware to parse cookies 
 
-// DEBUG: Request Logger
-app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`);
-    next();
-});
+app.use('/auth/', authRoutes);
+app.use('/group/', groupRoutes);
+app.use('/rbac/', rbacRoutes);
+app.use('/expense/', expenseRoutes);
 
-app.use('/auth', authRoutes);
-app.use('/group', groupRoutes);
-app.use('/users',rbacRoutes);
+// Global Error Handler
+app.use((err, req, res, next) => {
+    console.error('SERVER ERROR:', err.stack);
+    res.status(err.status || 500).json({
+        message: err.message || 'Internal Server Error',
+        error: process.env.NODE_ENV === 'development' ? err : {}
+    });
+});
 
 
 

@@ -40,16 +40,39 @@ const groupDao = {
         return await Group.find({ membersEmail: email });
 
     },
+    getGroupsForViewer: async (userEmail, adminEmail) => {
+        return await Group.find({
+            $or: [
+                { membersEmail: userEmail },
+                { adminEmail: adminEmail }
+            ]
+        });
+    },
     getGroupByStatus: async (status) => {
         return await Group.find({ 'paymentStatus.isPaid': status });
     },
 
+    getGroupById: async (groupId) => {
+        return await Group.findById(groupId);
+    },
     getAuditLog: async (groupId) => {
         const group = await Group.findById(groupId).select('createdAt updatedAt');
         return {
             createdAt: group.createdAt,
             lastUpdatedAt: group.updatedAt
         };
+    },
+
+    getGroupsPaginated: async (email, limit, skip, sortOptions = { createdAt: -1 }) => {
+        const [groups, totalCount] = await Promise.all([
+            Group.find({ membersEmail: email })
+                .sort(sortOptions)
+                .skip(skip)
+                .limit(limit),
+            Group.countDocuments({ membersEmail: email })
+        ]);
+
+        return { groups, totalCount };
     }
 };
 

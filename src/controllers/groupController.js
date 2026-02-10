@@ -1,4 +1,5 @@
 const groupDao = require('../dao/groupDao');
+const emailService = require('../services/emailService');
 const { validationResult } = require('express-validator');
 
 const groupController = {
@@ -71,6 +72,20 @@ const groupController = {
             const { groupId, membersEmail } = req.body;
 
             const group = await groupDao.addMembers(groupId, ...membersEmail);
+
+            // Send invitation emails
+            for (const email of membersEmail) {
+                try {
+                    await emailService.send(
+                        email,
+                        `You have been invited to join ${group.name}`,
+                        `Hi,\n\nYou have been added to the group "${group.name}" on ExpenseApp. Log in to start splitting bills!\n\nCheers!`
+                    );
+                } catch (emailError) {
+                    console.error(`Failed to send invite to ${email}:`, emailError.message);
+                }
+            }
+
             res.status(200).json(group);
         } catch (error) {
             console.log(error);
@@ -131,9 +146,48 @@ const groupController = {
 
     getGroupsByUser: async (req, res) => {
         try {
-            const email = req.user.email;
-            const groups = await groupDao.getGroupByEmail(email);
-            res.status(200).json(groups);
+            const user = req.user;
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const skip = (page - 1) * limit;
+
+            const sortBy = req.query.sortBy || 'newest';
+            let sortOptions = { createdAt: -1 };
+            if (sortBy === 'oldest') {
+                sortOptions = { createdAt: 1 };
+            }
+
+            const { groups, totalCount } = await groupDao.getGroupsPaginated(
+                user.email,
+                limit,
+                skip,
+                sortOptions
+            );
+
+            const totalPages = Math.ceil(totalCount / limit);
+
+            res.status(200).json({
+                groups,
+                pagination: {
+                    totalItems: totalCount,
+                    totalPages,
+                    currentPage: page,
+                    itemsPerPage: limit
+                }
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ message: 'Internal Server Error' });
+        }
+    },
+    getGroupById: async (req, res) => {
+        try {
+            const { groupId } = req.params;
+            const group = await groupDao.getGroupById(groupId);
+            if (!group) {
+                return res.status(404).json({ message: 'Group not found' });
+            }
+            res.status(200).json(group);
         } catch (error) {
             console.log(error);
             res.status(500).json({ message: 'Internal Server Error' });

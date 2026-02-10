@@ -1,23 +1,24 @@
 const User = require('../model/user');
 
 const rbacDao = {
-    create: async (userData) => {
+    create: async (userData, adminId) => {
         return await User.create({
             email: userData.email,
             password: userData.password,
             name: userData.name,
             role: userData.role,
-            adminId: userData._id
+            adminId: adminId
         });
     },
 
     update: async (userId, updateData) => {
-        const { name, role } = updateData;
-        return await User.findByIdAndUpdate(
-            userId,
-            { name, role },
-            { new: true }
-        );
+        const user = await User.findById(userId);
+        if (!user) return null;
+
+        if (updateData.name) user.name = updateData.name;
+        if (updateData.role) user.role = updateData.role;
+
+        return await user.save();
     },
 
     delete: async (userId) => {

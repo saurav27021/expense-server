@@ -3,8 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const { validationResult } = require('express-validator');
-
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const { ADMIN_ROLE } = require('../utility/userRoles');
 
 const authController = {
 
@@ -34,17 +33,25 @@ const authController = {
             });
         }
 
-        const isPasswordMatch = await bcrypt.compare(password, user.password);
+        const isPasswordMatched = await bcrypt.compare(password, user?.password);
 
-        if (!isPasswordMatch) {
+        if (!user || !isPasswordMatched) {
             return res.status(401).json({
                 message: "Invalid credentials"
             });
         }
 
         // CREATE JWT
+        const userRole = user.role || ADMIN_ROLE || 'admin';
+        const userAdminId = user.adminId || user._id;
+
         const token = jwt.sign(
-            { userId: user._id, email: user.email },
+            {
+                userId: user._id,
+                email: user.email,
+                role: userRole,
+                adminId: userAdminId
+            },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
@@ -62,7 +69,9 @@ const authController = {
             user: {
                 id: user._id,
                 name: user.name,
-                email: user.email
+                email: user.email,
+                role: userRole,
+                adminId: userAdminId
             }
         });
     },
@@ -86,12 +95,21 @@ const authController = {
             const user = await userDao.create({
                 name: name,
                 email: email,
-                password: hashedPassword
+                password: hashedPassword,
+                role: 'admin' // Default role for new registration
             });
 
             // CREATE JWT
+            const userRole = user.role || 'admin';
+            const userAdminId = user.adminId || user._id;
+
             const token = jwt.sign(
-                { userId: user._id, email: user.email },
+                {
+                    userId: user._id,
+                    email: user.email,
+                    role: userRole,
+                    adminId: userAdminId
+                },
                 process.env.JWT_SECRET,
                 { expiresIn: '1h' }
             );
@@ -108,7 +126,9 @@ const authController = {
                 user: {
                     id: user._id,
                     name: user.name,
-                    email: user.email
+                    email: user.email,
+                    role: userRole,
+                    adminId: userAdminId
                 }
             });
 
@@ -132,31 +152,63 @@ const authController = {
             const { idToken } = req.body;
 
             if (!idToken) {
-                return res.status(401).json({ message: "Invalid request" });
+                return res.status(400).json({ message: "Invalid request - Missing ID Token" });
             }
 
             const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-            const googleResponse = await googleClient.verifyIdToken({
-                idToken: idToken,
-                audience: process.env.GOOGLE_CLIENT_ID
-            });
+            let googleResponse;
+            try {
+                googleResponse = await googleClient.verifyIdToken({
+                    idToken: idToken,
+                    audience: process.env.GOOGLE_CLIENT_ID
+                });
+            } catch (verifyError) {
+                console.error('Google Token Verification Failed:', verifyError.message);
+                return res.status(401).json({
+                    message: 'Invalid Google Token',
+                    error: verifyError.message
+                });
+            }
 
             const payload = googleResponse.getPayload();
+            if (!payload) {
+                return res.status(401).json({ message: "Invalid Google Payload" });
+            }
+
             const { sub: googleId, name, email } = payload;
+
+            if (!email) {
+                return res.status(400).json({ message: "Google account must have an email associated" });
+            }
 
             let user = await userDao.findByEmail(email);
 
             if (!user) {
+                // New user registration via Google SSO
                 user = await userDao.create({
                     name,
                     email,
-                    googleId
+                    googleId,
+                    role: 'admin' // Default role for new signups
                 });
+            } else if (!user.googleId) {
+                // Existing user logging in with Google for the first time
+                // Link Google account to existing user
+                user.googleId = googleId;
+                await user.save();
             }
 
+            const userRole = user.role || 'admin';
+            const userAdminId = user.adminId || user._id;
+
             const token = jwt.sign(
-                { userId: user._id, email: user.email },
+                {
+                    userId: user._id,
+                    email: user.email,
+                    role: userRole,
+                    adminId: userAdminId
+                },
                 process.env.JWT_SECRET,
                 { expiresIn: '1h' }
             );
@@ -172,18 +224,20 @@ const authController = {
                 user: {
                     id: user._id,
                     name: user.name,
-                    email: user.email
+                    email: user.email,
+                    role: userRole,
+                    adminId: userAdminId
                 }
             });
 
         } catch (error) {
-            console.error('Google Login Error:', error);
-            return res.status(401).json({
-                message: 'Invalid Google Token'
+            console.error('Google SSO Internal Error:', error);
+            return res.status(500).json({
+                message: 'Internal Server Error during Google SSO',
+                error: error.message
             });
         }
-    }
-    ,
+    },
 
     // ================= CHECK SESSION =================
     isUserLoggedIn: async (req, res) => {
