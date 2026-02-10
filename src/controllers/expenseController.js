@@ -63,26 +63,48 @@ const expenseController = {
 
             expenses.forEach(expense => {
                 const payer = expense.paidBy;
-                members.add(payer);
-
-                balances[payer] = (balances[payer] || 0) + expense.amount;
+                if (!balances[payer]) balances[payer] = 0;
+                balances[payer] = Number((balances[payer] + expense.amount).toFixed(2));
 
                 expense.splitDetails.forEach(split => {
-                    members.add(split.email);
+                    if (!balances[split.email]) balances[split.email] = 0;
                     if (!split.excluded) {
-                        balances[split.email] = (balances[split.email] || 0) - split.amount;
+                        balances[split.email] = Number((balances[split.email] - split.amount).toFixed(2));
                     }
                 });
             });
 
+            // Ensure Ledger Balances to exactly Zero (Final Residue Absorption)
+            // Perform a single pass of rounding and balancing to avoid residues
+            Object.keys(balances).forEach(email => {
+                balances[email] = Number(balances[email].toFixed(2));
+            });
+
+            const balanceSum = Object.values(balances).reduce((a, b) => a + b, 0);
+            if (Math.abs(balanceSum) >= 0.01) {
+                // Find the member with the largest absolute balance to absorb the rounding residue
+                const mainMember = Object.keys(balances).reduce((a, b) =>
+                    Math.abs(balances[a]) > Math.abs(balances[b]) ? a : b
+                    , Object.keys(balances)[0]);
+
+                if (mainMember) {
+                    balances[mainMember] = Number((balances[mainMember] - balanceSum).toFixed(2));
+                }
+            }
+
+            // Final step: Capture absolute zeros and apply final rounding
+            Object.keys(balances).forEach(email => {
+                balances[email] = Number(balances[email].toFixed(2));
+                if (Math.abs(balances[email]) < 0.01) balances[email] = 0;
+            });
+
             // Calculate P2P debts (Who owes whom)
-            // Strategy: Greedy algorithm to settle net balances
             const debtors = [];
             const creditors = [];
 
             Object.keys(balances).forEach(email => {
-                if (balances[email] < -0.01) debtors.push({ email, amount: Math.abs(balances[email]) });
-                else if (balances[email] > 0.01) creditors.push({ email, amount: balances[email] });
+                if (balances[email] < 0) debtors.push({ email, amount: Math.abs(balances[email]) });
+                else if (balances[email] > 0) creditors.push({ email, amount: balances[email] });
             });
 
             const p2pDebts = [];
@@ -95,8 +117,8 @@ const expenseController = {
                     amount: Number(amount.toFixed(2))
                 });
 
-                debtors[d].amount -= amount;
-                creditors[c].amount -= amount;
+                debtors[d].amount = Number((debtors[d].amount - amount).toFixed(2));
+                creditors[c].amount = Number((creditors[c].amount - amount).toFixed(2));
 
                 if (debtors[d].amount < 0.01) d++;
                 if (creditors[c].amount < 0.01) c++;
