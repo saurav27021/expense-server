@@ -12,14 +12,9 @@ const expenseController = {
 
             const { title, amount, groupId, paidBy, splitType, splitDetails } = req.body;
 
-            // 1. Verify Group Exists
-            const group = await groupDao.getGroupsPaginated(paidBy, 1, 0); // Temporary check using DAO
-            // Better: find group by ID and check if user is in membersEmail
 
-            // For now, let's assume the group exists and validation is handled by middlewares if possible
-            // or perform a direct check
+            const group = await groupDao.getGroupsPaginated(paidBy, 1, 0);
 
-            // 2. Validate Split Sum if Unequal
             if (splitType === 'unequal') {
                 const totalSplitAmount = splitDetails.reduce((sum, item) => sum + (item.amount || 0), 0);
                 if (Math.abs(totalSplitAmount - amount) > 0.01) {
@@ -56,9 +51,15 @@ const expenseController = {
     getGroupSummary: async (req, res) => {
         try {
             const { groupId } = req.params;
-            const expenses = await expenseDao.getExpensesByGroup(groupId, false); // Only unsettled
+            const group = await groupDao.getGroupById(groupId);
+            if (!group) return res.status(404).json({ message: 'Group not found' });
 
-            const balances = {}; // { email: net_balance }
+            const expenses = await expenseDao.getExpensesByGroup(groupId, false);
+
+            const balances = {};
+            group.membersEmail.forEach(email => {
+                balances[email] = 0;
+            });
             const members = new Set();
 
             expenses.forEach(expense => {
@@ -74,15 +75,14 @@ const expenseController = {
                 });
             });
 
-            // Ensure Ledger Balances to exactly Zero (Final Residue Absorption)
-            // Perform a single pass of rounding and balancing to avoid residues
+
             Object.keys(balances).forEach(email => {
                 balances[email] = Number(balances[email].toFixed(2));
             });
 
             const balanceSum = Object.values(balances).reduce((a, b) => a + b, 0);
             if (Math.abs(balanceSum) >= 0.01) {
-                // Find the member with the largest absolute balance to absorb the rounding residue
+
                 const mainMember = Object.keys(balances).reduce((a, b) =>
                     Math.abs(balances[a]) > Math.abs(balances[b]) ? a : b
                     , Object.keys(balances)[0]);
@@ -92,13 +92,13 @@ const expenseController = {
                 }
             }
 
-            // Final step: Capture absolute zeros and apply final rounding
+
             Object.keys(balances).forEach(email => {
                 balances[email] = Number(balances[email].toFixed(2));
                 if (Math.abs(balances[email]) < 0.01) balances[email] = 0;
             });
 
-            // Calculate P2P debts (Who owes whom)
+
             const debtors = [];
             const creditors = [];
 
@@ -120,8 +120,7 @@ const expenseController = {
                 debtors[d].amount = Number((debtors[d].amount - amount).toFixed(2));
                 creditors[c].amount = Number((creditors[c].amount - amount).toFixed(2));
 
-                if (debtors[d].amount < 0.01) d++;
-                if (creditors[c].amount < 0.01) c++;
+
             }
 
             res.status(200).json({ balances, p2pDebts });
@@ -135,8 +134,7 @@ const expenseController = {
         try {
             const { groupId, fromEmail, toEmail, amount } = req.body;
 
-            // Record this as a special "Payment" expense
-            // Razorpay will be implemented here later
+
             const settlementExpense = await expenseDao.createExpense({
                 title: `Payment: ${fromEmail.split('@')[0]} to ${toEmail.split('@')[0]}`,
                 amount: amount,
@@ -164,11 +162,9 @@ const expenseController = {
         try {
             const { groupId } = req.body;
 
-            // 1. Mark all expenses as settled
             await expenseDao.markExpensesAsSettled(groupId);
 
-            // 2. Update Group payment status (if you want to track last settlement)
-            // This part depends on how the group model is intended to be used for settlement
+
             await groupDao.updateGroup(groupId, {
                 paymentStatus: {
                     amount: 0,

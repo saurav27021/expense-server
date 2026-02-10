@@ -6,12 +6,11 @@ const groupDao = {
     },
 
     updateGroup: async (groupId, data) => {
-
-        const { name, description, thumbnail, adminEmail, paymentStatus } = data;
-        return await Group.findByIdAndUpdate(groupId, {
-            name, description, thumbnail, adminEmail, paymentStatus,
-
-        }, { new: true });
+        return await Group.findByIdAndUpdate(
+            groupId,
+            { $set: data },
+            { new: true }
+        );
     },
 
     addMembers: async (groupId, ...membersEmails) => {
