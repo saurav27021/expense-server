@@ -1,0 +1,23 @@
+[2026-02-11T07:32:54.763Z] [Service:Payment] Checking for full settlement after payment
+[2026-02-11T07:32:54.781Z] [Service:Payment] New Balances: {"A@test.com":50,"B@test.com":-50}
+[2026-02-11T07:32:54.782Z] [Service:Payment] isFullySettled? false
+[2026-02-11T07:38:25.779Z] [Service:Payment] Checking for full settlement after payment
+[2026-02-11T07:38:25.783Z] [Service:Payment] New Balances: {"saurav@gmail.com":-1000,"sauravthespi@gmail.com":1000,"sauravraj@gmail.com":0}
+[2026-02-11T07:38:25.784Z] [Service:Payment] isFullySettled? false
+[2026-02-11T07:39:01.849Z] [Service:Payment] Checking for full settlement after payment
+[2026-02-11T07:39:01.854Z] [Service:Payment] New Balances: {"saurav@gmail.com":0,"sauravthespi@gmail.com":0,"sauravraj@gmail.com":0}
+[2026-02-11T07:39:01.854Z] [Service:Payment] isFullySettled? true
+[2026-02-11T07:39:01.855Z] [Service:Payment] FULL RESOLUTION REACHED. Archiving.
+[2026-02-11T07:42:42.351Z] [Service:Payment] Checking for full settlement after payment
+[2026-02-11T07:42:42.357Z] [Service:Payment] New Balances: {"saurav@gmail.com":3000,"sauravthespi@gmail.com":-2000,"sauravraj@gmail.com":-1000}
+[2026-02-11T07:42:42.358Z] [Service:Payment] isFullySettled? false
+[2026-02-11T07:42:53.305Z] [Service:Settle] Fetching initial summary for group 698aeb12b4f62f89a64f0db8
+[2026-02-11T07:42:53.311Z] [Service:Settle] Found 1 user-specific debts for sauravraj@gmail.com
+[2026-02-11T07:42:53.312Z] [Service:Settle] Recording payment: sauravraj@gmail.com -> saurav@gmail.com amount 1000
+[2026-02-11T07:42:53.316Z] [Service:Settle] Re-summarizing group to check if all balances are zero
+[2026-02-11T07:42:53.322Z] [Service:Settle] New Balances: {"saurav@gmail.com":2000,"sauravthespi@gmail.com":-2000,"sauravraj@gmail.com":0}
+[2026-02-11T07:42:53.322Z] [Service:Settle] isFullySettled check: false
+[2026-02-11T08:38:57.114Z] [Service:Payment] Checking for full settlement after payment
+[2026-02-11T08:38:57.120Z] [Service:Payment] New Balances: {"saurav@gmail.com":0,"sauravthespi@gmail.com":0,"sauravraj@gmail.com":0}
+[2026-02-11T08:38:57.121Z] [Service:Payment] isFullySettled? true
+[2026-02-11T08:38:57.121Z] [Service:Payment] FULL RESOLUTION REACHED. Archiving.

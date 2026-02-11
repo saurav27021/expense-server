@@ -49,7 +49,7 @@ const rbacController = {
 
     update: async (req, res) => {
         try {
-            console.log('Update User Request Received. Body:', req.body);
+
             const { userId, name, role } = req.body;
 
             if (!userId) {
@@ -63,11 +63,7 @@ const rbacController = {
                 return res.status(404).json({ message: "User not found" });
             }
 
-            console.log('User successfully updated in DB:', {
-                id: updatedUser._id,
-                name: updatedUser.name,
-                role: updatedUser.role
-            });
+
 
             res.status(200).json(updatedUser);
         } catch (error) {

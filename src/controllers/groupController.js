@@ -99,9 +99,36 @@ const groupController = {
                 return res.status(400).json({ errors: errors.array() });
             }
             const { groupId, membersEmail } = req.body;
+            const user = req.user;
 
-            const group = await groupDao.removeMembers(groupId, ...membersEmail);
-            res.status(200).json(group);
+            const group = await groupDao.getGroupById(groupId);
+            if (!group) return res.status(404).json({ message: 'Group not found' });
+
+            // Allow both admin role users and group creators to remove members
+            const isGroupCreator = group.adminEmail === user.email;
+            const isAdminRole = user.role && user.role.toLowerCase() === 'admin';
+
+            if (!isGroupCreator && !isAdminRole) {
+                return res.status(403).json({ message: 'Only the Group Creator or Admin can remove members.' });
+            }
+
+            if (membersEmail.includes(user.email)) {
+                return res.status(400).json({ message: 'You cannot remove yourself from the group.' });
+            }
+
+            const { balances } = await require('../services/expenseService').getGroupSummary(groupId);
+
+            for (const email of membersEmail) {
+                const balance = balances[email] || 0;
+                if (Math.abs(balance) > 0.01) {
+                    return res.status(400).json({
+                        message: `Cannot remove ${email.split('@')[0]} because they have a non-zero balance of ₹${balance}. Settle debts first.`
+                    });
+                }
+            }
+
+            const updatedGroup = await groupDao.removeMembers(groupId, ...membersEmail);
+            res.status(200).json(updatedGroup);
         } catch (error) {
             console.log(error);
             res.status(500).json({ message: 'Internal Server Error' });

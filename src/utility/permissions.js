@@ -11,6 +11,7 @@ const PERMISSIONS = {
   ],
   [VIEWER_ROLE]: [
     'group:view',
+    'group:update',
     'user:view'
   ]
 };

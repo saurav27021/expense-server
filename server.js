@@ -28,8 +28,11 @@ app.use('/group/', groupRoutes);
 app.use('/rbac/', rbacRoutes);
 app.use('/expense/', expenseRoutes);
 
+const fs = require('fs');
 // Global Error Handler
 app.use((err, req, res, next) => {
+    const errorLog = `[${new Date().toISOString()}] ${err.stack}\n`;
+    fs.appendFileSync('debug.log', errorLog);
     console.error('SERVER ERROR:', err.stack);
     res.status(err.status || 500).json({
         message: err.message || 'Internal Server Error',

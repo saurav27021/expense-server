@@ -6,8 +6,10 @@ const expenseDao = {
         return await newExpense.save();
     },
 
-    getExpensesByGroup: async (groupId, isSettled = false) => {
-        return await Expense.find({ groupId, isSettled }).sort({ createdAt: -1 });
+    getExpensesByGroup: async (groupId, isSettled) => {
+        const query = { groupId };
+        if (isSettled !== undefined) query.isSettled = isSettled;
+        return await Expense.find(query).sort({ createdAt: -1 });
     },
 
     markExpensesAsSettled: async (groupId) => {
